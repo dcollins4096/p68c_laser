@@ -22,7 +22,7 @@ def plot_fft(ftool, outname=None,ax=None):
         ax.plot(ftool.k3d, ftool.power_1d3.real,c='g', label='P3d')
 
     if ftool.done2 and ftool.done3:
-        ax.plot(ftool.kspace2a,1.5*ftool.kspace2a*ftool.power_1d2.real,c='b', label = '1.5 k P2d')
+        ax.plot(ftool.k2d,ftool.k2d*ftool.power_1d2.real,c='b', label = 'k P2d')
     ax.legend(loc=0)
 
     ax.set(yscale='log',xscale='log')
@@ -40,6 +40,7 @@ class fft_tool():
         print('3d fourier transform')
         self.fft3 = np.fft.fftn( self.rho )
         self.power=self.fft3*np.conjugate(self.fft3)
+        #self.power/=self.power.size
         ff = Filter.FourierFilter(self.power)
         self.power_1d3 = np.array([self.power[ff.get_shell(bin)].sum() for bin in range(ff.nx)])
         self.power_1d3 /= self.rho.size
@@ -59,8 +60,11 @@ class fft_tool():
         if self.rho2 is None:
             print('MAKE NEW PROJECTION')
             self.rho2=self.rho.sum(axis=projax)
+            Nz = self.rho.shape[projax]
+            self.rho2/=Nz
         self.fft2 = np.fft.fftn( self.rho2 )
         self.power2=self.fft2*np.conjugate(self.fft2)
+        #self.power2/=self.power2.size
         ff2 = Filter.FourierFilter(self.power2)
         self.power_1d2 = np.array([self.power2[ff2.get_shell(bin)].sum() for bin in range(ff2.nx)])
         self.power_1d2 /= self.rho2.size
@@ -92,7 +96,8 @@ class fft_tool():
         if 1:
             #works pretty well.
             x = np.arange(baseshape[0])
-            g = np.exp(-x**2/(2*2**2))**6
+            sigma_conv=2
+            g = np.exp(-x**2/(2*sigma_conv**2))**6
             window = np.outer(g,g)
 
         window/=window.sum()

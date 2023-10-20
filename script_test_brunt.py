@@ -51,7 +51,7 @@ if 0:
     fig.savefig('%s/PigPen/test1'%(os.environ['HOME']))
 
 
-if 0:
+if 1:
     #try brunt.  Works to a factor of 2, not bad.
     sigma_rho = (rho**2).sum().real
     #sigma_fft = (power_1d3).sum().real

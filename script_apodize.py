@@ -12,14 +12,10 @@ plotdir='%s/PigPen/'%(os.environ['HOME'])
 sim = '4_1'
 frame = 35
 
-if 'ds' not in dir():
+#get cubes; rho_full is straight off disk.  rho is downsampled by 2
+if 'rho' not in dir():
     print('load and cg')
-    ds = yt.load("/data/cb1/Projects/P49_EE_BB/%s/DD%04d/data%04d"%(sim, frame, frame))
-    print('get cg')
-    cg = ds.covering_grid(0, [0.0]*3, [512]*3)
-    dds = cg.dds
-    rho_full = cg["density"].v
-    rho = volavg.volavg(rho_full,rank=3,refine_by=2)
+    rho_full, rho = bt.get_cubes(sim,frame)
 
 #if 'ftool' not in dir():
 #    ftool = fft_tool(rho)
