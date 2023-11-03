@@ -8,6 +8,7 @@ def get_cubes(sim,frame):
     ds = yt.load("/data/cb1/Projects/P49_EE_BB/%s/DD%04d/data%04d"%(sim, frame, frame))
     print('get cg')
     cg = ds.covering_grid(0, [0.0]*3, [512]*3)
+
     dds = cg.dds
     rho_full = cg["density"].v
     rho = volavg.volavg(rho_full,rank=3,refine_by=2)
@@ -29,24 +30,34 @@ def plot_fft(ftool, outname=None,ax=None):
     if ax is not None:
         fig.savefig(outname)
 
+def plot_fft2(ftool, outname=None):
+    fig,ax=plt.subplots(1,3,figsize=(8,4))
+    ax[0].imshow( ftool.rho2)
+    ax[1].imshow(ftool.rho2p)
+    ax[2].plot( ftool.k2d, ftool.power_1d2.real, c='k', label='2d')
+    ax[2].plot( ftool.k2dp, ftool.power_1d2p.real, c='r',label='2dp')
+    ax[2].set(xscale='log',yscale='log')
+    ax[2].legend(loc=0)
+    fig.savefig(outname)
+def plot_fft3(ftool,apod=None, outname=None):
+    fig,ax=plt.subplots(2,2,figsize=(8,4))
+    ax[0][0].imshow( ftool.rho2)
+    ax[1][0].imshow(ftool.rho2p)
+    ax[0][1].imshow( apod.rho2)
+    ax[1][1].plot( ftool.k2d, ftool.power_1d2.real, c='k', label='2d')
+    ax[1][1].plot( ftool.k2dp, ftool.power_1d2p.real, c='r',label='2dp')
+    ax[1][1].plot( apod.k2d, apod.power_1d2.real, c='g', label='apod')
+    ax[1][1].set(xscale='log',yscale='log')
+    ax[1][1].legend(loc=0)
+    fig.savefig(outname)
+
 class fft_tool():
     def __init__(self,rho):
         self.rho=rho
         self.rho2=None
+        self.rho2p=None
         self.done2=False
         self.done3=False
-
-    def do3(self):
-        print('3d fourier transform')
-        self.fft3 = np.fft.fftn( self.rho )
-        self.power=self.fft3*np.conjugate(self.fft3)
-        #self.power/=self.power.size
-        ff = Filter.FourierFilter(self.power)
-        self.power_1d3 = np.array([self.power[ff.get_shell(bin)].sum() for bin in range(ff.nx)])
-        self.power_1d3 /= self.rho.size
-        self.Nzones = np.array([ff.get_shell(bin).sum() for bin in range(ff.nx)])
-        self.k3d=ff.get_shell_k()
-        self.done3=True
 
     def brunt_sigma(self):
         sigma_3d = (self.rho**2).sum()
@@ -55,25 +66,66 @@ class fft_tool():
         sigma_brunt = sigma_col*Rinv
         return sigma_brunt, sigma_3d
 
+    def do3(self):
+        print('3d fourier transform')
+        self.fft3 = np.fft.fftn( self.rho )
+        self.power=self.fft3*np.conjugate(self.fft3)
+        self.power/=self.power.size
+        ff = Filter.FourierFilter(self.power)
+        self.power_1d3 = np.array([self.power[ff.get_shell(bin)].sum() for bin in range(ff.nx)])
+        #self.power_1d3 /= self.rho.size
+        self.Nzones = np.array([ff.get_shell(bin).sum() for bin in range(ff.nx)])
+        self.k3d=ff.get_shell_k()
+        self.done3=True
+
+
     def do2(self,projax=0):
         print('2d fourier transform')
         if self.rho2 is None:
             print('MAKE NEW PROJECTION')
             self.rho2=self.rho.sum(axis=projax)
             Nz = self.rho.shape[projax]
-            self.rho2/=Nz
+            #self.rho2/=Nz
         self.fft2 = np.fft.fftn( self.rho2 )
         self.power2=self.fft2*np.conjugate(self.fft2)
-        #self.power2/=self.power2.size
+        self.power2/=self.power2.size
         ff2 = Filter.FourierFilter(self.power2)
         self.power_1d2 = np.array([self.power2[ff2.get_shell(bin)].sum() for bin in range(ff2.nx)])
-        self.power_1d2 /= self.rho2.size
+        #self.power_1d2 /= self.rho2.size
         self.Nzones2 = np.array([ff2.get_shell(bin).sum() for bin in range(ff2.nx)])
         self.k2d=ff2.get_shell_k()
+        self.done2=True
+    def do2_periodic(self,projax=0):
+        print('2d fourier transform')
+        if self.rho2p is None:
+            print('MAKE NEW PROJECTION')
+            self.rho2=self.rho.sum(axis=projax)
+            Nz = self.rho.shape[projax]
+            self.rho2/=Nz
+            #self.rho2p = np.concatenate([self.rho2, self.rho2[::-1]], axis=0)
+            #self.rho2p = np.concatenate([self.rho2p, self.rho2p[:,::-1]],axis=1)
+            s_elf.rho2p = np.concatenate([self.rho2, self.rho2[::-1]], axis=0)
+            self.rho2p = np.concatenate([self.rho2p, self.rho2p[:,::-1]],axis=1)
+
+            fig,ax=plt.subplots(1,1)
+            ax.imshow(self.rho2p)
+            fig.savefig('/home/dccollins/PigPen/derp')
+
+
+
+        self.fft2p = np.fft.fftn( self.rho2p )
+        self.power2p=self.fft2p*np.conjugate(self.fft2p)
+        #self.power2/=self.power2.size
+        ff2p = Filter.FourierFilter(self.power2p)
+        self.power_1d2p = np.array([self.power2p[ff2p.get_shell(bin)].sum() for bin in range(ff2p.nx)])
+        self.power_1d2p /= self.rho2p.size
+        self.Nzones2p = np.array([ff2p.get_shell(bin).sum() for bin in range(ff2p.nx)])
+        self.k2dp=ff2p.get_shell_k()
         self.done2=True
 
     def apodize1(self,projax=0):
         self.rho2=self.rho.sum(axis=projax)
+        self.rho2/=self.rho2.shape[projax]
         shape=np.array(self.rho2.shape)
         baseshape=(1.*shape).astype('int')
         base = np.zeros(baseshape)
